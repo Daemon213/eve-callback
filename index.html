@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EVE Auth Relay</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #040608;
+    color: #1be0d0;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    flex-direction: column;
+    gap: 16px;
+    font-size: 13px;
+    letter-spacing: 3px;
+  }
+  .icon { font-size: 40px; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .status { color: #e8a320; }
+  .sub { font-size: 10px; color: #4a6a7a; letter-spacing: 2px; }
+  .error { color: #e84040; text-align: center; max-width: 400px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="icon">◈</div>
+<div id="msg" class="status">AUTHENTICATING...</div>
+<div id="sub" class="sub">RELAYING TO TRACKER</div>
+
+<script>
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    const error  = params.get('error');
+
+    if (error) {
+      document.getElementById('msg').className = 'error';
+      document.getElementById('msg').textContent = 'EVE AUTH ERROR: ' + (params.get('error_description') || error);
+      document.getElementById('sub').textContent = 'CLOSE THIS WINDOW AND TRY AGAIN';
+      return;
+    }
+
+    if (!code || !state) {
+      document.getElementById('msg').className = 'error';
+      document.getElementById('msg').textContent = 'NO AUTH CODE RECEIVED';
+      document.getElementById('sub').textContent = 'NAVIGATE TO YOUR TRACKER MANUALLY';
+      return;
+    }
+
+    if (window.opener && !window.opener.closed) {
+      // Relay to the parent tracker window - accepts any origin so file:// works
+      window.opener.postMessage({ type: 'EVE_AUTH_CODE', code: code, state: state }, '*');
+      document.getElementById('msg').textContent = 'AUTHENTICATION SUCCESSFUL';
+      document.getElementById('sub').textContent = 'THIS WINDOW WILL CLOSE AUTOMATICALLY';
+      setTimeout(() => window.close(), 1400);
+    } else {
+      // Opener gone - store in localStorage as fallback then try to focus opener
+      try {
+        localStorage.setItem('eve_pending_code',  code);
+        localStorage.setItem('eve_pending_state', state);
+        localStorage.setItem('eve_pending_ts',    Date.now().toString());
+      } catch(_) {}
+      document.getElementById('msg').textContent = 'RETURN TO TRACKER';
+      document.getElementById('sub').textContent = 'AUTH CODE SAVED — SWITCH BACK TO YOUR TRACKER WINDOW';
+    }
+  })();
+</script>
+</body>
+</html>
